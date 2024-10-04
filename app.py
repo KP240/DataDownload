@@ -117,7 +117,7 @@ def main():
     end_date = st.date_input('End Date')
 
     # City filter
-    city_options = ['All', 'BLR', 'CHN', 'NCR-Nodia', 'NCR-GGN', 'HYD', 'MPL', 'IDR']  # Add more cities as needed
+    city_options = ['All', 'BLR', 'CHN', 'NCR-Nodia', 'NCR-GGN', 'HYD','CHN','PUN','MUB"]  # Add more cities as needed
     selected_city = st.selectbox('Select City', city_options)
 
     # Fetch dropdown values for site name and SP lithium ID
