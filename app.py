@@ -3,7 +3,6 @@ import pandas as pd
 import psycopg2
 from datetime import datetime
 import base64
-from io import BytesIO
 
 # Function to fetch distinct values for dropdowns
 def fetch_dropdown_values(city_code):
@@ -140,40 +139,38 @@ def main():
     selected_vehicle_reg_no = st.selectbox('Select Vehicle Registration Number', vehicle_reg_no_options)
 
     # Display SQL query dynamically
-    if start_date and end_date:
-        sql_query = f"""
-        SELECT 
-        id, city_code, client, client_office, billing_model, 
-        to_char(trip_date::timestamp,'DD/MM/YYYY') as trip_date, trip_type, shift_time, 
-        client_trip_id, vehicle_reg_no, driver_lithium_id, driver_name, driver_contact_no, 
-        planned_pax, actual_pax, is_escort, 
-        to_char(client_trip_allocation_time::timestamp, 'DD/MM/YYYY HH24:MI') as client_trip_allocation_time, 
-        to_char(lithium_cab_allocation_time::timestamp, 'DD/MM/YYYY HH24:MI') as lithium_cab_allocation_time, 
-        delay_reason, ow_planned_distance, ow_actual_distance, two_way_actual_distance, 
-        employee_location::jsonb ->>'emp1location' as emp1location,
-        employee_location::jsonb ->>'emp2location' as emp2location,
-        employee_location::jsonb ->>'emp3location' as emp3location,
-        employee_location::jsonb ->>'emp4location' as emp4location, 
-        to_char(first_pickup_driver_reportin_time::timestamp, 'DD/MM/YYYY HH24:MI') as first_pickup_driver_reportin_time, 
-        to_char(first_emp_planned_pick_time::timestamp, 'DD/MM/YYYY HH24:MI') as first_emp_planned_pick_time, 
-        to_char(first_emp_actual_pick_time::timestamp, 'DD/MM/YYYY HH24:MI') as first_emp_actual_pick_time, 
-        to_char(last_emp_planned_drop_time::timestamp, 'DD/MM/YYYY HH24:MI') as last_emp_planned_drop_time, 
-        to_char(last_emp_actual_drop_time::timestamp, 'DD/MM/YYYY HH24:MI') as last_emp_actual_drop_time, 
-        to_char(branch_office_reporting_time::timestamp, 'DD/MM/YYYY HH24:MI') as branch_office_reporting_time, 
-        isb2b, b2b_trip_id, 
-        to_char(planned_start_time::timestamp, 'DD/MM/YYYY HH24:MI') as planned_start_time, 
-        to_char(actual_start_time::timestamp, 'DD/MM/YYYY HH24:MI') as actual_start_time, 
-        to_char(planned_end_time::timestamp, 'DD/MM/YYYY HH24:MI') as planned_end_time, 
-        to_char(actual_end_time::timestamp, 'DD/MM/YYYY HH24:MI') as actual_end_time, 
-        trip_status, remarks
-        FROM etms_trips
-        WHERE trip_date >= '{start_date}' AND trip_date <= '{end_date}' 
-        AND ('{selected_city}' = 'All' OR lower(city_code) = lower('{selected_city}')) 
-        AND ('{selected_site_name}' = 'All' OR lower(client_office) = lower('{selected_site_name}')) 
-        AND ('{selected_sp_lithium_id}' = 'All' OR lower(driver_lithium_id) = lower('{selected_sp_lithium_id}')) 
-        AND ('{selected_vehicle_reg_no}' = 'All' OR lower(vehicle_reg_no) = lower('{selected_vehicle_reg_no}'));
-        """
-        st.code(sql_query)
+    sql_query = f"""
+    SELECT 
+    id, city_code, client, client_office, billing_model, 
+    to_char(trip_date::timestamp,'DD/MM/YYYY') as trip_date, trip_type, shift_time, 
+    client_trip_id, vehicle_reg_no, driver_lithium_id, driver_name, driver_contact_no, 
+    planned_pax, actual_pax, is_escort, 
+    to_char(client_trip_allocation_time::timestamp, 'DD/MM/YYYY HH24:MI') as client_trip_allocation_time, 
+    to_char(lithium_cab_allocation_time::timestamp, 'DD/MM/YYYY HH24:MI') as lithium_cab_allocation_time, 
+    delay_reason, ow_planned_distance, ow_actual_distance, two_way_actual_distance, 
+    employee_location::jsonb ->>'emp1location' as emp1location,
+    employee_location::jsonb ->>'emp2location' as emp2location,
+    employee_location::jsonb ->>'emp3location' as emp3location,
+    employee_location::jsonb ->>'emp4location' as emp4location, 
+    to_char(first_pickup_driver_reportin_time::timestamp, 'DD/MM/YYYY HH24:MI') as first_pickup_driver_reportin_time, 
+    to_char(first_emp_planned_pick_time::timestamp, 'DD/MM/YYYY HH24:MI') as first_emp_planned_pick_time, 
+    to_char(first_emp_actual_pick_time::timestamp, 'DD/MM/YYYY HH24:MI') as first_emp_actual_pick_time, 
+    to_char(last_emp_planned_drop_time::timestamp, 'DD/MM/YYYY HH24:MI') as last_emp_planned_drop_time, 
+    to_char(last_emp_actual_drop_time::timestamp, 'DD/MM/YYYY HH24:MI') as last_emp_actual_drop_time, 
+    to_char(branch_office_reporting_time::timestamp, 'DD/MM/YYYY HH24:MI') as branch_office_reporting_time, 
+    isb2b, b2b_trip_id, 
+    to_char(planned_start_time::timestamp, 'DD/MM/YYYY HH24:MI') as planned_start_time, 
+    to_char(actual_start_time::timestamp, 'DD/MM/YYYY HH24:MI') as actual_start_time, 
+    to_char(planned_end_time::timestamp, 'DD/MM/YYYY HH24:MI') as planned_end_time, 
+    to_char(actual_end_time::timestamp, 'DD/MM/YYYY HH24:MI') as actual_end_time, 
+    trip_status, remarks
+    FROM etms_trips
+    WHERE trip_date >= '{start_date}' AND trip_date <= '{end_date}' 
+    AND ('{selected_city}' = 'All' OR lower(city_code) = lower('{selected_city}')) 
+    AND ('{selected_site_name}' = 'All' OR lower(client_office) = lower('{selected_site_name}')) 
+    AND ('{selected_sp_lithium_id}' = 'All' OR lower(driver_lithium_id) = lower('{selected_sp_lithium_id}')) 
+    AND ('{selected_vehicle_reg_no}' = 'All' OR lower(vehicle_reg_no) = lower('{selected_vehicle_reg_no}'));
+    """
 
     if st.button('Fetch Data'):
         if start_date and end_date:
@@ -188,6 +185,10 @@ def main():
                 st.markdown(link, unsafe_allow_html=True)
             else:
                 st.warning('No data found for the selected filters.')
+
+    # Expander for SQL Query
+    with st.expander("Show SQL Query"):
+        st.code(sql_query)
 
 if __name__ == '__main__':
     main()
