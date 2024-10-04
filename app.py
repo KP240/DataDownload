@@ -24,19 +24,22 @@ def fetch_dropdown_values(city_code):
     if city_code and city_code != 'All':
         site_query = f"SELECT DISTINCT client_office FROM etms_trips WHERE lower(city_code) = '{city_code.lower()}' ORDER BY client_office"
         sp_query = f"SELECT DISTINCT driver_lithium_id FROM etms_trips WHERE lower(city_code) = '{city_code.lower()}' ORDER BY driver_lithium_id"
+        vehicle_query = f"SELECT DISTINCT vehicle_reg_no FROM etms_trips WHERE lower(city_code) = '{city_code.lower()}' ORDER BY vehicle_reg_no"
     else:
         site_query = "SELECT DISTINCT client_office FROM etms_trips ORDER BY client_office"
         sp_query = "SELECT DISTINCT driver_lithium_id FROM etms_trips ORDER BY driver_lithium_id"
+        vehicle_query = "SELECT DISTINCT vehicle_reg_no FROM etms_trips ORDER BY vehicle_reg_no"
 
     site_names = pd.read_sql_query(site_query, conn)['client_office'].tolist()
     sp_lithium_ids = pd.read_sql_query(sp_query, conn)['driver_lithium_id'].tolist()
+    vehicle_reg_nos = pd.read_sql_query(vehicle_query, conn)['vehicle_reg_no'].tolist()
 
     conn.close()
 
-    return site_names, sp_lithium_ids
+    return site_names, sp_lithium_ids, vehicle_reg_nos
 
 # Function to fetch data from PostgreSQL
-def fetch_data(start_date, end_date, city_code, site_name, sp_lithium_id):
+def fetch_data(start_date, end_date, city_code, site_name, sp_lithium_id, vehicle_reg_no):
     DB_HOST = '34.100.223.97'
     DB_PORT = 5432
     DB_NAME = 'trips'
@@ -92,6 +95,7 @@ def fetch_data(start_date, end_date, city_code, site_name, sp_lithium_id):
         AND (%s = '' OR lower(city_code) = %s)
         AND (%s = '' OR lower(client_office) = %s)
         AND (%s = '' OR lower(driver_lithium_id) = %s)
+        AND (%s = '' OR lower(vehicle_reg_no) = %s)
     """
 
     conn = psycopg2.connect(
@@ -102,7 +106,7 @@ def fetch_data(start_date, end_date, city_code, site_name, sp_lithium_id):
         password=DB_PASSWORD
     )
 
-    df = pd.read_sql_query(sql_query, conn, params=(start_date, end_date, city_code, city_code, site_name, site_name, sp_lithium_id, sp_lithium_id))
+    df = pd.read_sql_query(sql_query, conn, params=(start_date, end_date, city_code, city_code, site_name, site_name, sp_lithium_id, sp_lithium_id, vehicle_reg_no, vehicle_reg_no))
 
     conn.close()
 
@@ -117,11 +121,11 @@ def main():
     end_date = st.date_input('End Date')
 
     # City filter
-    city_options = ['All', 'BLR', 'CHN', 'NCR-Nodia', 'NCR-GGN', 'HYD','CHN','PUN','MUM']  # Add more cities as needed
+    city_options = ['All', 'BLR', 'CHN', 'NCR-Nodia', 'NCR-GGN', 'HYD','PUN','MUM']  # Add more cities as needed
     selected_city = st.selectbox('Select City', city_options)
 
-    # Fetch dropdown values for site name and SP lithium ID
-    site_names, sp_lithium_ids = fetch_dropdown_values(selected_city)
+    # Fetch dropdown values for site name, SP lithium ID, and vehicle reg number
+    site_names, sp_lithium_ids, vehicle_reg_nos = fetch_dropdown_values(selected_city)
 
     # Site Name filter
     site_name_options = ['All'] + site_names
@@ -130,6 +134,10 @@ def main():
     # SP Lithium ID filter
     sp_lithium_id_options = ['All'] + sp_lithium_ids
     selected_sp_lithium_id = st.selectbox('Select SP Lithium ID', sp_lithium_id_options)
+
+    # Vehicle Registration Number filter
+    vehicle_reg_no_options = ['All'] + vehicle_reg_nos
+    selected_vehicle_reg_no = st.selectbox('Select Vehicle Registration Number', vehicle_reg_no_options)
 
     # Display SQL query dynamically
     if start_date and end_date:
@@ -158,61 +166,28 @@ def main():
         to_char(planned_end_time::timestamp, 'DD/MM/YYYY HH24:MI') as planned_end_time, 
         to_char(actual_end_time::timestamp, 'DD/MM/YYYY HH24:MI') as actual_end_time, 
         trip_status, remarks
-    FROM 
-        etms_trips
-    WHERE 
-        trip_date >= '{start_date}' AND trip_date <= '{end_date}' 
-        AND ({selected_city.lower()} = '' OR lower(city_code) = '{selected_city.lower()}')
-        AND ({selected_site_name.lower()} = '' OR lower(client_office) = '{selected_site_name.lower()}')
-        AND ({selected_sp_lithium_id.lower()} = '' OR lower(driver_lithium_id) = '{selected_sp_lithium_id.lower()}')
-    """
-    
-    # Display the SQL query below the city selection in the sidebar
-    with st.expander("See SQL", expanded=False):
-        st.code(sql_query, language='sql')
+        FROM etms_trips
+        WHERE trip_date >= '{start_date}' AND trip_date <= '{end_date}' 
+        AND ('{selected_city}' = 'All' OR lower(city_code) = lower('{selected_city}')) 
+        AND ('{selected_site_name}' = 'All' OR lower(client_office) = lower('{selected_site_name}')) 
+        AND ('{selected_sp_lithium_id}' = 'All' OR lower(driver_lithium_id) = lower('{selected_sp_lithium_id}')) 
+        AND ('{selected_vehicle_reg_no}' = 'All' OR lower(vehicle_reg_no) = lower('{selected_vehicle_reg_no}'));
+        """
+        st.code(sql_query)
 
-    # Fetch data based on filters
     if st.button('Fetch Data'):
-        city_code = '' if selected_city == 'All' else selected_city.lower()
-        site_name = '' if selected_site_name == 'All' else selected_site_name.lower()
-        sp_lithium_id = '' if selected_sp_lithium_id == 'All' else selected_sp_lithium_id.lower()
+        if start_date and end_date:
+            df = fetch_data(start_date, end_date, selected_city, selected_site_name, selected_sp_lithium_id, selected_vehicle_reg_no)
+            if not df.empty:
+                st.dataframe(df)
 
-        df = fetch_data(start_date, end_date, city_code, site_name, sp_lithium_id)
-
-        # Show filtered data
-        st.write('Filtered Data:')
-        st.write(df)
-
-        # Provide button to download data as Excel
-        if not df.empty:
-            excel_data = BytesIO()
-            df.to_excel(excel_data, index=False)
-            excel_data.seek(0)
-            filename = f"trips_{start_date.strftime('%Y-%m-%d')}_{end_date.strftime('%Y-%m-%d')}.xlsx"
-            b64 = base64.b64encode(excel_data.read()).decode()
-            href = f'<a href="data:application/octet-stream;base64,{b64}" download="{filename}" class="stDownloadButton">Download Excel File</a>'
-            st.markdown(href, unsafe_allow_html=True)
-            st.markdown(
-                """
-                <style>
-                .stDownloadButton {
-                    color: white !important;
-                    background-color: red;
-                    text-decoration: none;
-                    padding: 8px 16px;
-                    border-radius: 4px;
-                    display: inline-block;
-                    cursor: pointer;
-                }
-                .stDownloadButton:hover {
-                    opacity: 0.8;
-                }
-                </style>
-                """,
-                unsafe_allow_html=True
-            )
-        else:
-            st.write("No data to download.")
+                # Option to download the data
+                csv = df.to_csv(index=False).encode('utf-8')
+                b64 = base64.b64encode(csv).decode()
+                link = f'<a href="data:file/csv;base64,{b64}" download="trip_data.csv">Download CSV</a>'
+                st.markdown(link, unsafe_allow_html=True)
+            else:
+                st.warning('No data found for the selected filters.')
 
 if __name__ == '__main__':
     main()
